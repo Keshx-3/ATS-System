@@ -1,4 +1,3 @@
-python
 sentence-transformers
 scikit-learn
 streamlit
