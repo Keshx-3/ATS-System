@@ -1,7 +1,8 @@
-sentence-transformers==2.2.2
-scikit-learn==1.3.2
-streamlit==1.31.1
-numpy==1.26.4
-torch==2.2.1
-pdfplumber==0.11.0
-huggingface_hub==0.23.4
+sentence-transformers
+scikit-learn
+streamlit
+numpy
+torch
+pdfplumber
+spacy
+huggingface_hub
