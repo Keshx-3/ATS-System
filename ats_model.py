@@ -11,7 +11,9 @@ import re
 try:
     nlp = spacy.load("en_core_web_sm")
 except:
-    raise ImportError("Please install spaCy model: python -m spacy download en_core_web_sm")
+    # Attempt to download the model if not found
+    subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"], check=True)
+    nlp = spacy.load("en_core_web_sm")
 
 
 class ATSModel:
