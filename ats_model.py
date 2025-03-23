@@ -8,7 +8,7 @@ import re
 class ATSModel:
     def __init__(self):
         self.model = None
-        self.tfidf_vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 3))
+        self.tfidf_vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 3), min_df=1)
         
     def _load_model(self):
         if self.model is None:
@@ -32,16 +32,38 @@ class ATSModel:
         # Get keyword scores
         keyword_scores = {feature: score for feature, score in zip(feature_names, tfidf_scores)}
         
-        # Filter out generic terms
+        # Expanded generic terms to exclude
         generic_terms = {'experience', 'skills', 'knowledge', 'development', 'technical', 'proficiency', 
                          'career', 'basic', 'handson', 'fundamentals', 'projects', 'professionals', 
-                         'innovative', 'engineering'}
+                         'innovative', 'engineering', 'using', 'alongside', 'analysis', 'learning', 
+                         'experienced', 'team', 'work', 'role', 'data', 'business'}
+        
+        # Technical terms to boost (partial list, can expand based on your domain)
+        tech_indicators = {'ai', 'aiml', 'tensorflow', 'numpy', 'pandas', 'python', 'nlp', 'frameworks', 
+                           'machine', 'deep', 'sql', 'excel', 'probability', 'preprocessing'}
         
         final_keywords = []
+        seen_words = set()
+        
+        # Sort by score descending
         for keyword, score in sorted(keyword_scores.items(), key=lambda x: x[1], reverse=True):
-            if any(word in generic_terms for word in keyword.split()):
+            keyword_words = set(keyword.split())
+            
+            # Skip if contains generic terms or is too vague
+            if keyword_words & generic_terms or len(keyword_words) > 3 or len(keyword) < 3:
                 continue
+            
+            # Skip if it’s a substring of an already included keyword
+            if any(keyword in seen for seen in seen_words):
+                continue
+            
+            # Boost score for technical terms
+            if keyword_words & tech_indicators or any(word[0].isupper() for word in keyword_words):
+                score *= 1.5
+            
             final_keywords.append(keyword)
+            seen_words.add(keyword)
+            
             if len(final_keywords) >= top_n:
                 break
         
