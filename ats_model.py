@@ -8,21 +8,6 @@ import spacy
 import re
 import subprocess
 
-# Load spaCy model with fallback
-try:
-    nlp = spacy.load("en_core_web_sm")
-except OSError:
-    try:
-        print("Downloading spaCy model 'en_core_web_sm'...")
-        result = subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"], 
-                               capture_output=True, text=True, check=True)
-        print(f"Download output: {result.stdout}")
-        nlp = spacy.load("en_core_web_sm")
-    except subprocess.CalledProcessError as e:
-        raise ImportError(f"Failed to install spaCy model 'en_core_web_sm': {e}. Command output: {e.output}")
-    except Exception as e:
-        raise ImportError(f"Unexpected error installing spaCy model 'en_core_web_sm': {e}")
-
 class ATSModel:
     def __init__(self):
         self.model = SentenceTransformer('all-MiniLM-L6-v2')
