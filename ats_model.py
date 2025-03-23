@@ -1,4 +1,3 @@
-# ats_model.py
 import numpy as np
 from sentence_transformers import SentenceTransformer
 import pickle
@@ -7,11 +6,14 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 import spacy
 import re
 
-# Load spaCy model
+# Load spaCy model with fallback download
 try:
     nlp = spacy.load("en_core_web_sm")
-except:
-    raise ImportError("Please install spaCy model: python -m spacy download en_core_web_sm")
+except OSError:
+    import subprocess
+    import sys
+    subprocess.run([sys.executable, "-m", "spacy", "download", "en_core_web_sm"])
+    nlp = spacy.load("en_core_web_sm")
 
 
 class ATSModel:
@@ -25,18 +27,15 @@ class ATSModel:
         return text
 
     def extract_keywords(self, text, top_n=10):
-        # Preprocess text
         text = self.preprocess_text(text)
         doc = nlp(text)
 
-        # Extract noun phrases as candidate keywords
         candidates = []
         for chunk in doc.noun_chunks:
             chunk_text = chunk.text.lower().strip()
-            if len(chunk_text.split()) <= 3:  # Limit to 1-3 word phrases
+            if len(chunk_text.split()) <= 3:
                 candidates.append(chunk_text)
 
-        # Add single proper nouns (e.g., "Python", "AWS")
         for token in doc:
             if token.pos_ == 'PROPN' and len(token.text) > 2:
                 candidates.append(token.text.lower())
@@ -44,36 +43,31 @@ class ATSModel:
         if not candidates:
             return []
 
-        # Use TF-IDF to score candidates
         tfidf_matrix = self.tfidf_vectorizer.fit_transform([text] + candidates)
         feature_names = self.tfidf_vectorizer.get_feature_names_out()
-        tfidf_scores = tfidf_matrix[0].toarray()[0]  # Scores for the original text
+        tfidf_scores = tfidf_matrix[0].toarray()[0]
 
-        # Create a dictionary of candidate scores
         candidate_scores = {}
         for candidate in candidates:
             candidate_words = candidate.split()
-            # Average TF-IDF score of words in the candidate
             score = sum(tfidf_scores[np.where(feature_names == word)[0][0]]
                         for word in candidate_words if word in feature_names) / len(candidate_words)
             candidate_scores[candidate] = score
 
-        # Filter out generic terms
-        generic_terms = {'experience', 'skills', 'knowledge', 'development', 'technical', 'proficiency',
-                         'career', 'basic', 'handson', 'fundamentals', 'projects', 'professionals',
-                         'innovative', 'engineering'}
+        generic_terms = {
+            'experience', 'skills', 'knowledge', 'development', 'technical',
+            'proficiency', 'career', 'basic', 'handson', 'fundamentals',
+            'projects', 'professionals', 'innovative', 'engineering'
+        }
 
-        # Score adjustment: boost technical-sounding terms (e.g., proper nouns, acronyms)
         final_keywords = []
         for candidate, score in sorted(candidate_scores.items(), key=lambda x: x[1], reverse=True):
             if any(word in generic_terms for word in candidate.split()):
                 continue
-            # Boost score for proper nouns or acronyms
             if any(token.pos_ == 'PROPN' or token.text.isupper() for token in nlp(candidate)):
                 score *= 1.5
             final_keywords.append((candidate, score))
 
-        # Return top N keywords
         return [kw for kw, score in sorted(final_keywords, key=lambda x: x[1], reverse=True)][:top_n]
 
     def get_embedding(self, text):
