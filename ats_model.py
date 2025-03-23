@@ -1,4 +1,3 @@
-# ats_model.py
 import numpy as np
 from sentence_transformers import SentenceTransformer
 import pickle
@@ -6,7 +5,14 @@ from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.feature_extraction.text import TfidfVectorizer
 import spacy
 import re
-import subprocess
+
+# Load spaCy model globally
+try:
+    nlp = spacy.load("en_core_web_sm")
+except OSError:
+    import subprocess
+    subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"])
+    nlp = spacy.load("en_core_web_sm")
 
 class ATSModel:
     def __init__(self):
@@ -42,9 +48,12 @@ class ATSModel:
         candidate_scores = {}
         for candidate in candidates:
             candidate_words = candidate.split()
-            score = sum(tfidf_scores[np.where(feature_names == word)[0][0]]
-                        for word in candidate_words if word in feature_names) / len(candidate_words)
-            candidate_scores[candidate] = score
+            try:
+                score = sum(tfidf_scores[np.where(feature_names == word)[0][0]]
+                            for word in candidate_words if word in feature_names) / len(candidate_words)
+                candidate_scores[candidate] = score
+            except:
+                continue
 
         generic_terms = {'experience', 'skills', 'knowledge', 'development', 'technical', 'proficiency',
                          'career', 'basic', 'handson', 'fundamentals', 'projects', 'professionals',
