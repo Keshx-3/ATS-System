@@ -5,4 +5,4 @@ scikit-learn
 sentence-transformers
 keybert
 transformers
-torch==2.0.1
+torch
