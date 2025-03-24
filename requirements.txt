@@ -1,8 +1,8 @@
 streamlit
 pdfplumber
-scikit-learn
 numpy
+scikit-learn
 sentence-transformers
 keybert
 transformers
-torch
+torch==2.0.1
