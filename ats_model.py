@@ -2,72 +2,33 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 import pickle
 from sklearn.metrics.pairwise import cosine_similarity
-from sklearn.feature_extraction.text import TfidfVectorizer
-import spacy
+from keybert import KeyBERT
 import re
-
-# Load spaCy model globally
-try:
-    nlp = spacy.load("en_core_web_sm")
-except OSError:
-    import subprocess
-    subprocess.run(["python", "-m", "spacy", "download", "en_core_web_sm"])
-    nlp = spacy.load("en_core_web_sm")
 
 class ATSModel:
     def __init__(self):
         self.model = SentenceTransformer('all-MiniLM-L6-v2')
-        self.tfidf_vectorizer = TfidfVectorizer(stop_words='english', ngram_range=(1, 3))
+        self.keyword_extractor = KeyBERT(model=self.model)
 
     def preprocess_text(self, text):
         text = text.lower()
         text = re.sub(r'[^\w\s]', '', text)
         return text
 
-    def extract_keywords(self, text, top_n=10):
+    def extract_keywords(self, text, top_n=15):
         text = self.preprocess_text(text)
-        doc = nlp(text)
 
-        candidates = []
-        for chunk in doc.noun_chunks:
-            chunk_text = chunk.text.lower().strip()
-            if len(chunk_text.split()) <= 3:
-                candidates.append(chunk_text)
+        # Extract keywords using KeyBERT
+        keywords = self.keyword_extractor.extract_keywords(
+            text,
+            keyphrase_ngram_range=(1, 2),
+            stop_words='english',
+            use_maxsum=True,
+            nr_candidates=30,
+            top_n=top_n
+        )
 
-        for token in doc:
-            if token.pos_ == 'PROPN' and len(token.text) > 2:
-                candidates.append(token.text.lower())
-
-        if not candidates:
-            return []
-
-        tfidf_matrix = self.tfidf_vectorizer.fit_transform([text] + candidates)
-        feature_names = self.tfidf_vectorizer.get_feature_names_out()
-        tfidf_scores = tfidf_matrix[0].toarray()[0]
-
-        candidate_scores = {}
-        for candidate in candidates:
-            candidate_words = candidate.split()
-            try:
-                score = sum(tfidf_scores[np.where(feature_names == word)[0][0]]
-                            for word in candidate_words if word in feature_names) / len(candidate_words)
-                candidate_scores[candidate] = score
-            except:
-                continue
-
-        generic_terms = {'experience', 'skills', 'knowledge', 'development', 'technical', 'proficiency',
-                         'career', 'basic', 'handson', 'fundamentals', 'projects', 'professionals',
-                         'innovative', 'engineering'}
-
-        final_keywords = []
-        for candidate, score in sorted(candidate_scores.items(), key=lambda x: x[1], reverse=True):
-            if any(word in generic_terms for word in candidate.split()):
-                continue
-            if any(token.pos_ == 'PROPN' or token.text.isupper() for token in nlp(candidate)):
-                score *= 1.5
-            final_keywords.append((candidate, score))
-
-        return [kw for kw, score in sorted(final_keywords, key=lambda x: x[1], reverse=True)][:top_n]
+        return [kw[0].lower() for kw in keywords]
 
     def get_embedding(self, text):
         return self.model.encode(text)
